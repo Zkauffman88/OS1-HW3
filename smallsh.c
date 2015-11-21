@@ -139,7 +139,28 @@ int smsh_status(int status) {
    return 0;
 }
 
+char* smsh_redr_in(char** args) {
+  FILE* file;
+  char* line;
+  char* path;
+  char buff[255];
+
+  sprintf(path, "./%s", args[1]);
+  line = arg[0];
+  file = fopen(path, "r");
+  if(file) {
+    strcat(line, fgets(buff, "%s", (FILE*)file);
+  }
+  else {
+    perror("smallsh");
+  }
+
+  return line;
+}
+
 int smsh_execute(char** args, int status) {
+  char* line;
+
   if(args[0] == NULL) {
     //an empty command was entered
     return 0;
@@ -153,6 +174,15 @@ int smsh_execute(char** args, int status) {
   }
   else if(strcmp(args[0], "status") ==  0) {
      return (smsh_status(status));
+  }
+  else if(args[1] == '<') {
+    line = smsh_redr_in(args);
+    args = smsh_split_line(line);
+    return smsh_launch(args);
+  }
+  else if(args[1] == '>') {
+  }
+  else if(args[1] == '&' || args[2] == '&') {
   }
 
   return smsh_launch(args);
