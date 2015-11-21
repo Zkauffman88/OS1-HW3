@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #define SMSH_RL_BUFSIZE 1024
-char* lsh_read_line(void) {
+char* smsh_read_line(void) {
   int bufsize = SMSH_RL_BUFSIZE;
   int position = 0;
   char* buffer = malloc(sizeof(char)*bufsize);
@@ -83,7 +83,7 @@ char** smsh_split_line(char* line) {
   return tokens;
 }
 
-int smsh_lauch(char** args) {
+int smsh_launch(char** args) {
   pid_t pid;
   pid_t wpid;
   int status;
@@ -93,12 +93,14 @@ int smsh_lauch(char** args) {
     //child process
     if(execvp(args[0], args) == -1) {
       perror("smallsh");
+      return 1;
     }
     exit(EXIT_FAILURE);
   }
   else if(pid < 0) {
     //error forking
     perror("smallsh");
+    return 1;
   }
   else {
     //parent process
@@ -107,33 +109,40 @@ int smsh_lauch(char** args) {
     }while(!WIFEXITED(status) && !WIFSIGNALED(status));
   }
 
-  return 1;
+  return 0;
 }
 
 int smsh_cd(char** args) {
   if(args[1] == NULL) {
-    if(chdir("/") != 0) {
+     //this thing doesn't work
+     //TODO fix cd to home
+    if(chdir("~") != 0) {
       perror("smallsh");
+      return 1;
     }
   }
   else {
     if(chdir(args[1]) != 0) {
       perror("smallsh");
+      return 1;
     }
   }
-  return 1;
-}
-
-int smsh_exit(char** args) {
   return 0;
 }
 
-int smsh_execute(char** args) {
-  int i;
+int smsh_exit(char** args) {
+  return -1;
+}
 
+int smsh_status(int status) {
+   printf("exit value %d\n", status);
+   return 0;
+}
+
+int smsh_execute(char** args, int status) {
   if(args[0] == NULL) {
     //an empty command was entered
-    return 1;
+    return 0;
   }
 
   if(strcmp(args[0], "cd") == 0) {
@@ -141,6 +150,9 @@ int smsh_execute(char** args) {
   }
   else if(strcmp(args[0], "exit") == 0) {
     return (smsh_exit(args));
+  }
+  else if(strcmp(args[0], "status") ==  0) {
+     return (smsh_status(status));
   }
 
   return smsh_launch(args);
@@ -155,11 +167,11 @@ void smsh_loop(void) {
     printf(": ");
     line = smsh_read_line();
     args = smsh_split_line(line);
-    status = smsh_execute(args);
+    status = smsh_execute(args, status);
 
     free(line);
     free(args);
-  }while(status);
+  }while(status != -1);
 }
 
 int main(int argc, char** argv) {
