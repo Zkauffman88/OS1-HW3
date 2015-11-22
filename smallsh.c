@@ -105,9 +105,10 @@ int smsh_launch_bg(char** args) {
   }
   else {
     //parent process
-    do {
-      wpid = waitpid(-1, &status, WNOHANG);
-    }while(!WIFEXITED(status) && !WIFSIGNALED(status));
+    printf("background pid is %d\n", pid);
+    //do {
+      //wpid = waitpid(-1, &status, WNOHANG);
+    //}while(!WIFEXITED(status) && !WIFSIGNALED(status));
   }
 
   return 0;
