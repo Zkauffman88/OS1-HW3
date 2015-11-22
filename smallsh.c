@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 #define SMSH_RL_BUFSIZE 1024
 char* smsh_read_line(void) {
@@ -83,6 +84,35 @@ char** smsh_split_line(char* line) {
   return tokens;
 }
 
+int smsh_launch_bg(char** args) {
+  pid_t pid;
+  pid_t wpid;
+  int status;
+
+  pid = fork();
+  if(pid == 0) {
+    //child process
+    if(execvp(args[0], args) == -1) {
+      perror("smallsh");
+      return 1;
+    }
+    exit(EXIT_FAILURE);
+  }
+  else if(pid < 0) {
+    //error forking
+    perror("smallsh");
+    return 1;
+  }
+  else {
+    //parent process
+    do {
+      wpid = waitpid(-1, &status, WNOHANG);
+    }while(!WIFEXITED(status) && !WIFSIGNALED(status));
+  }
+
+  return 0;
+}
+
 int smsh_launch(char** args) {
   pid_t pid;
   pid_t wpid;
@@ -139,34 +169,27 @@ int smsh_status(int status) {
    return 0;
 }
 
-char* smsh_redr_in(char** args) {
-  FILE* file;
-  char* line;
-  char* path;
-  char buff[255];
+int amp(char** args) {
+  int i;
 
-  path = malloc(sizeof(char)*255);
+  i = 0;
 
-  sprintf(path, "./%s", args[2]);
-  printf("%s\n", path);
-  line = args[0];
-  file = fopen(path, "r");
-  if(file != NULL) {
-    fgets(buff, 255, (FILE*)file);
-    strcat(line, buff); 
+  while(args[i] != NULL) {
+    if(strcmp(args[i], "&") == 0) {
+      return i;
+    }
+    i++;
   }
-  else {
-    perror("smallsh");
-    return NULL;
-  }
-
-  free(path);
-
-  return line;
+  
+  return -1;
 }
 
 int smsh_execute(char** args, int status) {
+  char* path;
   char* line;
+  FILE* fp;
+  int exit;
+  int bak, new;
 
   if(args[0] == NULL) {
     //an empty command was entered
@@ -182,20 +205,63 @@ int smsh_execute(char** args, int status) {
   else if(strcmp(args[0], "status") ==  0) {
      return (smsh_status(status));
   }
-  else if(args[1] && strcmp(args[1], "<") == 0) {
-    line = smsh_redr_in(args);
-    if(line != NULL) {
-       args = smsh_split_line(line);
-       return smsh_launch(args);
-    }
-    return 1;
+  else if(strcmp(args[0], "#") == 0) {
+    return 0;
   }
-  //else if(strcmp(args[1], ">") == 0) {
-  //}
-  //else if(args[1] == '&' || args[2] == '&') {
-  //}
+  else if(args[1] && strcmp(args[1], "<") == 0) {
+    path = malloc(sizeof(char)*255);
+    sprintf(path, "./%s", args[2]);
 
-  return smsh_launch(args);
+    args[1] = path;
+    if(args[3] && strcmp(args[3], "&") == 0) {
+      args[2] = NULL;
+      args[3] = NULL;
+      free(path);
+      return smsh_launch_bg(args);
+    }
+    else {
+      args[2] = NULL;
+    }
+
+    //free malloc stuff
+    free(path);
+
+    return smsh_launch(args);
+
+  }
+  else if(args[1] && strcmp(args[1], ">") == 0) {
+    if(args[2]) {
+      fflush(stdout);
+      bak = dup(1);
+      new = open(args[2], O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
+      if(new == -1) {
+        perror("open");
+      }
+      dup2(new, 1);
+      close(new);
+      args[1] = NULL;
+      args[2] = NULL;
+      exit = smsh_launch(args);
+      fflush(stdout);
+      dup2(bak, 1);
+      close(bak);
+
+      return exit;
+    }
+    else {
+      perror("smallsh");
+      return 1;
+    }
+  }
+
+  exit = amp(args);
+  if(exit != -1) {
+    args[exit] = NULL;
+    return smsh_launch_bg(args);
+  }
+  else {
+    return smsh_launch(args);
+  }
 }
 
 void smsh_loop(void) {
