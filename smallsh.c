@@ -145,15 +145,22 @@ char* smsh_redr_in(char** args) {
   char* path;
   char buff[255];
 
-  sprintf(path, "./%s", args[1]);
-  line = arg[0];
+  path = malloc(sizeof(char)*255);
+
+  sprintf(path, "./%s", args[2]);
+  printf("%s\n", path);
+  line = args[0];
   file = fopen(path, "r");
-  if(file) {
-    strcat(line, fgets(buff, "%s", (FILE*)file);
+  if(file != NULL) {
+    fgets(buff, 255, (FILE*)file);
+    strcat(line, buff); 
   }
   else {
     perror("smallsh");
+    return NULL;
   }
+
+  free(path);
 
   return line;
 }
@@ -175,15 +182,18 @@ int smsh_execute(char** args, int status) {
   else if(strcmp(args[0], "status") ==  0) {
      return (smsh_status(status));
   }
-  else if(args[1] == '<') {
+  else if(args[1] && strcmp(args[1], "<") == 0) {
     line = smsh_redr_in(args);
-    args = smsh_split_line(line);
-    return smsh_launch(args);
+    if(line != NULL) {
+       args = smsh_split_line(line);
+       return smsh_launch(args);
+    }
+    return 1;
   }
-  else if(args[1] == '>') {
-  }
-  else if(args[1] == '&' || args[2] == '&') {
-  }
+  //else if(strcmp(args[1], ">") == 0) {
+  //}
+  //else if(args[1] == '&' || args[2] == '&') {
+  //}
 
   return smsh_launch(args);
 }
