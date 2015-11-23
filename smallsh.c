@@ -88,7 +88,6 @@ int smsh_launch_bg(char** args) {
   pid_t pid;
   pid_t wpid;
   int status;
-  int i;
 
   pid = fork();
   if(pid == 0) {
@@ -105,8 +104,12 @@ int smsh_launch_bg(char** args) {
     return 1;
   }
   else {
-    //parent process
     printf("background pid is %d\n", pid);
+    fclose(stdout);
+    fclose(stdin);
+    do {
+      wpid = waitpid(pid, &status, WUNTRACED);
+    }while(!WIFEXITED(status) && !WIFSIGNALED(status));
   }
 
   return 0;
@@ -263,10 +266,29 @@ int smsh_execute(char** args, int status) {
   }
 }
 
+int kill_zombies(int bg) {
+  pid_t pid, wpid;
+  int status;
+
+  pid = bg;
+  do {
+    wpid = waitpid(pid, &status, WUNTRACED);
+  }while(!WIFEXITED(status) && !WIFSIGNALED(status));
+
+  return status;
+}
+
 void smsh_loop(void) {
   char* line;
   char** args;
-  int status;
+  int* bg;
+  int i, status, exit;
+
+  bg=malloc(sizeof(int)*5);
+  for(i=0; i<5; i++) {
+    bg[i] = 0;
+  }
+
 
   do {
     printf(": ");
