@@ -105,11 +105,11 @@ int smsh_launch_bg(char** args) {
   }
   else {
     printf("background pid is %d\n", pid);
-    fclose(stdout);
-    fclose(stdin);
-    do {
-      wpid = waitpid(pid, &status, WUNTRACED);
-    }while(!WIFEXITED(status) && !WIFSIGNALED(status));
+    wpid = 0;
+    wpid = waitpid(-1, &status, WNOHANG);
+    if(wpid != -1 && wpid != 0) {
+      printf("background pid %d is done: exit value %d\n", wpid, status);
+    }
   }
 
   return 0;
@@ -283,6 +283,7 @@ void smsh_loop(void) {
   char** args;
   int* bg;
   int i, status, exit;
+  pid_t wpid;
 
   bg=malloc(sizeof(int)*5);
   for(i=0; i<5; i++) {
@@ -298,6 +299,11 @@ void smsh_loop(void) {
 
     free(line);
     free(args);
+    wpid = -1;
+    wpid = waitpid(-1, &status, WNOHANG);
+    if(wpid != -1 && wpid != 0) {
+      printf("background pid %d is done: exit value %d\n", wpid, status);
+    }
   }while(status != -1);
 }
 
