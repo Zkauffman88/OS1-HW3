@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #define SMSH_RL_BUFSIZE 1024
 char* smsh_read_line(void) {
@@ -112,7 +113,12 @@ int smsh_launch_bg(char** args) {
     }
   }
 
-  return 0;
+  if(status == 0) {
+    return 0;
+  }
+  else {
+    return 1;
+  }
 }
 
 int smsh_launch(char** args) {
@@ -141,14 +147,17 @@ int smsh_launch(char** args) {
     }while(!WIFEXITED(status) && !WIFSIGNALED(status));
   }
 
-  return 0;
+  if(status == 0) {
+    return 0;
+  }
+  else {
+    return 1;
+  }
 }
 
 int smsh_cd(char** args) {
   if(args[1] == NULL) {
-     //this thing doesn't work
-     //TODO fix cd to home
-    if(chdir("~") != 0) {
+    if(chdir(getenv("HOME")) != 0) {
       perror("smallsh");
       return 1;
     }
@@ -266,30 +275,11 @@ int smsh_execute(char** args, int status) {
   }
 }
 
-int kill_zombies(int bg) {
-  pid_t pid, wpid;
-  int status;
-
-  pid = bg;
-  do {
-    wpid = waitpid(pid, &status, WUNTRACED);
-  }while(!WIFEXITED(status) && !WIFSIGNALED(status));
-
-  return status;
-}
-
 void smsh_loop(void) {
   char* line;
   char** args;
-  int* bg;
   int i, status, exit;
   pid_t wpid;
-
-  bg=malloc(sizeof(int)*5);
-  for(i=0; i<5; i++) {
-    bg[i] = 0;
-  }
-
 
   do {
     printf(": ");
@@ -308,6 +298,7 @@ void smsh_loop(void) {
 }
 
 int main(int argc, char** argv) {
+  
   //run the prompt loop
   smsh_loop();
 
